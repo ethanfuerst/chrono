@@ -9,6 +9,6 @@
 
 ---
 
-Features:
+Modules:
 
-- boxofficetracking
+- [boxofficetracking](https://github.com/ethanfuerst/box-office-tracking)
