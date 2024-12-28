@@ -27,4 +27,4 @@ jobs:
           pip install -r requirements.txt
 
       - name: Deploy Application
-        run: modal deploy etl.py
+        run: modal deploy app.py
