@@ -47,7 +47,7 @@ def extract_worldwide_box_office_data() -> None:
     duckdb_con = DuckDBConnection(
         s3_access_key_id=os.getenv("BOX_OFFICE_TRACKING_S3_ACCESS_KEY_ID"),
         s3_secret_access_key=os.getenv("BOX_OFFICE_TRACKING_S3_SECRET_ACCESS_KEY"),
-    )
+    ).get_connection()
 
     current_year = datetime.date.today().year
     last_year = current_year - 1

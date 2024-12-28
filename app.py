@@ -35,16 +35,6 @@ def main():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run the application locally or deploy to Modal."
-    )
-    parser.add_argument(
-        "--deploy", action="store_true", help="Deploy the application to Modal."
-    )
-    args = parser.parse_args()
-    if args.deploy:
-        logger.info("Deploying chrono to Modal.")
-        deploy_app(app)
-    else:
-        logger.info("Running chrono locally.")
-        main.local()
+    logger.info("Running chrono locally.")
+    main.local()
+    logger.info("Chrono finished running locally.")
