@@ -24,10 +24,9 @@ def load_worldwide_box_office_to_s3(duckdb_con: DuckDBConnection, year: int) -> 
         logger.error(f"Failed to fetch data: {e}")
         return
 
-    year_identifier = "ytd" if year == datetime.date.today().year else year
     formatted_date = datetime.date.today().strftime(S3_DATE_FORMAT)
 
-    box_office_data_table_name = f"boxofficemojo_{year_identifier}_{formatted_date}"
+    box_office_data_table_name = f"boxofficemojo_{year}_{formatted_date}"
     box_office_data_file_name = f"{box_office_data_table_name}.json"
     s3_file = f"s3://box-office-tracking/{box_office_data_table_name}.parquet"
 
@@ -35,11 +34,11 @@ def load_worldwide_box_office_to_s3(duckdb_con: DuckDBConnection, year: int) -> 
         df.to_json(file, orient="records")
 
     duckdb_con.execute(
-        f"copy (select * from read_json_auto('{box_office_data_table_name}.json')) to '{s3_file}';"
+        f'copy (select * from read_json_auto("{box_office_data_table_name}.json")) to "{s3_file}";'
     )
-    row_count = f"select count(*) from '{s3_file}';"
+    row_count = f'select count(*) from "{s3_file}";'
     logger.info(
-        f"Updated {s3_file} with {duckdb_con.sql(row_count).fetchnumpy()['count_star()'][0]} rows."
+        f'Updated {s3_file} with {duckdb_con.sql(row_count).fetchnumpy()["count_star()"][0]} rows.'
     )
     os.remove(box_office_data_file_name)
 
@@ -48,7 +47,7 @@ def extract_worldwide_box_office_data() -> None:
     duckdb_con = DuckDBConnection(
         s3_access_key_id=os.getenv("BOX_OFFICE_TRACKING_S3_ACCESS_KEY_ID"),
         s3_secret_access_key=os.getenv("BOX_OFFICE_TRACKING_S3_SECRET_ACCESS_KEY"),
-    ).conn
+    )
 
     current_year = datetime.date.today().year
     last_year = current_year - 1
