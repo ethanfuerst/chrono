@@ -1,9 +1,9 @@
-import datetime
-import logging
 import os
 import ssl
+from datetime.date import today
+from logging import getLogger
 
-import pandas as pd
+from pandas import DataFrame, read_html
 
 from utils import DuckDBConnection, setup_logging
 
@@ -12,30 +12,22 @@ setup_logging()
 
 
 ssl._create_default_https_context = ssl._create_unverified_context
-logger = logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
-def get_most_recent_s3_date(duckdb_con: DuckDBConnection) -> datetime.date:
-    max_date = duckdb_con.sql(
-        f"""select
-            max(make_date(file[44:47]::int, file[48:49]::int, file[50:51]::int)) as max_date
-        from glob('s3://box-office-tracking/boxofficemojo_ytd_*');"""
-    )
-    return_val = max_date.fetchnumpy()["max_date"][0].astype(datetime.date).date()
-    return return_val
+def load_worldwide_box_office_to_s3(duckdb_con: DuckDBConnection, year: int) -> None:
+    logger.info(f"Starting extraction for {year}.")
 
-
-def load_current_worldwide_box_office_to_s3(duckdb_con: DuckDBConnection) -> None:
-    logger.info("Starting extraction.")
     try:
-        df = pd.read_html("https://www.boxofficemojo.com/year/world/")[0]
+        df = read_html(f"https://www.boxofficemojo.com/year/world/{year}")[0]
     except Exception as e:
         logger.error(f"Failed to fetch data: {e}")
         return
 
-    box_office_data_table_name = (
-        f"boxofficemojo_ytd_{datetime.datetime.today().strftime(S3_DATE_FORMAT)}"
-    )
+    year_identifier = "ytd" if year == today().year else year
+    formatted_date = today().strftime(S3_DATE_FORMAT)
+
+    box_office_data_table_name = f"boxofficemojo_{year_identifier}_{formatted_date}"
     box_office_data_file_name = f"{box_office_data_table_name}.json"
     s3_file = f"s3://box-office-tracking/{box_office_data_table_name}.parquet"
 
@@ -51,19 +43,18 @@ def load_current_worldwide_box_office_to_s3(duckdb_con: DuckDBConnection) -> Non
     )
     os.remove(box_office_data_file_name)
 
-    return
-
 
 def extract_worldwide_box_office_data() -> None:
     duckdb_con = DuckDBConnection(
         s3_access_key_id=os.getenv("BOX_OFFICE_TRACKING_S3_ACCESS_KEY_ID"),
         s3_secret_access_key=os.getenv("BOX_OFFICE_TRACKING_S3_SECRET_ACCESS_KEY"),
     ).conn
-    if get_most_recent_s3_date(duckdb_con) < datetime.date.today():
-        logger.info("Loading new worldwide box office data to s3")
-        load_current_worldwide_box_office_to_s3(duckdb_con)
-    else:
-        logger.info("No new worldwide box office data to load to s3")
+
+    current_year = today().year
+    last_year = current_year - 1
+
+    load_worldwide_box_office_to_s3(duckdb_con, current_year)
+    load_worldwide_box_office_to_s3(duckdb_con, last_year)
 
 
 if __name__ == "__main__":
