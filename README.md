@@ -1,4 +1,4 @@
-# **Chrono**
+# chrono
 
 **/ˈkrɒn.oʊ/** *(noun)*  
 
