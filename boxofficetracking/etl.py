@@ -1,6 +1,6 @@
+import datetime
 import os
 import ssl
-from datetime.date import today
 from logging import getLogger
 
 from pandas import DataFrame, read_html
@@ -24,8 +24,8 @@ def load_worldwide_box_office_to_s3(duckdb_con: DuckDBConnection, year: int) -> 
         logger.error(f"Failed to fetch data: {e}")
         return
 
-    year_identifier = "ytd" if year == today().year else year
-    formatted_date = today().strftime(S3_DATE_FORMAT)
+    year_identifier = "ytd" if year == datetime.date.today().year else year
+    formatted_date = datetime.date.today().strftime(S3_DATE_FORMAT)
 
     box_office_data_table_name = f"boxofficemojo_{year_identifier}_{formatted_date}"
     box_office_data_file_name = f"{box_office_data_table_name}.json"
@@ -50,7 +50,7 @@ def extract_worldwide_box_office_data() -> None:
         s3_secret_access_key=os.getenv("BOX_OFFICE_TRACKING_S3_SECRET_ACCESS_KEY"),
     ).conn
 
-    current_year = today().year
+    current_year = datetime.date.today().year
     last_year = current_year - 1
 
     load_worldwide_box_office_to_s3(duckdb_con, current_year)
