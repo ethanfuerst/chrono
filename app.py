@@ -1,9 +1,10 @@
-import logging
 import argparse
+import logging
+
 import modal
 from modal.runner import deploy_app
 
-from boxofficetracking import extract_worldwide_box_office_data
+from boxofficetracking.etl import extract_worldwide_box_office_data
 
 app = modal.App("chrono")
 logger = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ modal_image = modal.Image.debian_slim(python_version="3.10").run_commands(
 )
 def main():
     extract_worldwide_box_office_data()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

@@ -14,7 +14,7 @@ def setup_logging():
 
 
 class DuckDBConnection:
-    
+
     def __init__(self, s3_access_key_id, s3_secret_access_key):
         self.conn = duckdb.connect(database=":memory:", read_only=False)
         self.s3_access_key_id = s3_access_key_id
