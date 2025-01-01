@@ -13,8 +13,8 @@ load_dotenv()
 setup_logging()
 
 
-def update_nba_data(incremental: bool = False) -> None:
-    if not incremental:
+def update_nba_data(full_refresh: bool = False) -> None:
+    if full_refresh:
         seasons = list(str(i) for i in range(1946, 2025))
         logging.info(f'Running full refresh from {seasons[0]} to {seasons[-1]}')
     else:

@@ -19,13 +19,13 @@ def load_data_from_endpoint(
 ) -> None:
     total_rows_loaded = 0
     endpoint = endpoint_class.endpoint
-    for table_name, df in endpoint_class.get_data():
-        logging.info(f'Starting extraction for {table_name}.')
+    for s3_key, df in endpoint_class.get_data():
+        logging.info(f'Starting extraction for {s3_key}.')
 
         rows_loaded = load_df_to_s3_table(
             duckdb_con=duckdb_con,
             df=df,
-            file_path=table_name,
+            s3_key=s3_key,
             bucket_name='nba-data-lakehouse',
         )
 

@@ -30,7 +30,7 @@ class TeamGameLogsExtractor(NBADataExtractor):
     def get_data(self) -> Generator[Tuple[str, DataFrame], None, None]:
         for season_info in self._get_seasons():
             for season_type in SEASON_TYPE_MAP.keys():
-                table_name = f'{self.endpoint}/season={season_info.season}/season_type={SEASON_TYPE_MAP[season_type]}'
+                s3_key = f'{self.endpoint}/season={season_info.season}/season_type={SEASON_TYPE_MAP[season_type]}'
 
                 endpoint = teamgamelogs.TeamGameLogs(
                     season_nullable=season_info.formatted_season,
@@ -40,14 +40,14 @@ class TeamGameLogsExtractor(NBADataExtractor):
                 df = endpoint.get_data_frames()[0]
 
                 if not df.empty:
-                    yield table_name, df
+                    yield s3_key, df
 
 
 class PlayerGameLogsExtractor(NBADataExtractor):
     def get_data(self) -> Generator[Tuple[str, DataFrame], None, None]:
         for season_info in self._get_seasons():
             for season_type in SEASON_TYPE_MAP.keys():
-                table_name = f'{self.endpoint}/season={season_info.season}/season_type={SEASON_TYPE_MAP[season_type]}'
+                s3_key = f'{self.endpoint}/season={season_info.season}/season_type={SEASON_TYPE_MAP[season_type]}'
 
                 endpoint = playergamelogs.PlayerGameLogs(
                     season_nullable=season_info.formatted_season,
@@ -57,7 +57,7 @@ class PlayerGameLogsExtractor(NBADataExtractor):
                 df = endpoint.get_data_frames()[0]
 
                 if not df.empty:
-                    yield table_name, df
+                    yield s3_key, df
 
 
 class PlayerIndexExtractor(NBADataExtractor):

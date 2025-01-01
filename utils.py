@@ -1,5 +1,6 @@
 import logging
 import os
+import tempfile
 
 import duckdb
 from pandas import DataFrame
@@ -39,13 +40,13 @@ class DuckDBConnection:
 def load_df_to_s3_table(
     duckdb_con: duckdb.DuckDBPyConnection,
     df: DataFrame,
-    file_path: str,
+    s3_key: str,
     bucket_name: str,
 ) -> int:
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    logging.info(f'Loading {s3_key} to {bucket_name}')
 
-    file_name = f'{file_path}.json'
-    s3_file = f's3://{bucket_name}/{file_path}.parquet'
+    file_name = f'{s3_key}.json'.replace('/', '_')
+    s3_file = f's3://{bucket_name}/{s3_key}.parquet'
 
     with open(file_name, 'w') as file:
         df.to_json(file, orient='records')

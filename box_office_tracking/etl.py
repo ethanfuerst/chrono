@@ -1,49 +1,45 @@
 import datetime
+import logging
 import os
 import ssl
-from logging import getLogger
 
 from pandas import DataFrame, read_html
 
-from utils import DuckDBConnection, setup_logging
+from utils import DuckDBConnection, load_df_to_s3_table, setup_logging
 
 S3_DATE_FORMAT = '%Y%m%d'
 setup_logging()
 
 
 ssl._create_default_https_context = ssl._create_unverified_context
-logger = getLogger(__name__)
 
 
-def load_worldwide_box_office_to_s3(duckdb_con: DuckDBConnection, year: int) -> None:
-    logger.info(f'Starting extraction for {year}.')
+def load_worldwide_box_office_to_s3(duckdb_con: DuckDBConnection, year: int) -> int:
+    logging.info(f'Starting extraction for {year}.')
 
     try:
         df = read_html(f'https://www.boxofficemojo.com/year/world/{year}')[0]
     except Exception as e:
-        logger.error(f'Failed to fetch data: {e}')
-        return
+        logging.error(f'Failed to fetch data: {e}')
+        return 0
 
     formatted_date = datetime.date.today().strftime(S3_DATE_FORMAT)
 
-    box_office_data_table_name = f'boxofficemojo_{year}_{formatted_date}'
-    box_office_data_file_name = f'{box_office_data_table_name}.json'
-    s3_file = f's3://box-office-tracking/{box_office_data_table_name}.parquet'
+    s3_key = f'boxofficemojo_{year}_{formatted_date}'
 
-    with open(box_office_data_file_name, 'w') as file:
-        df.to_json(file, orient='records')
+    rows_loaded = load_df_to_s3_table(
+        duckdb_con=duckdb_con,
+        df=df,
+        s3_key=s3_key,
+        bucket_name='box-office-tracking',
+    )
 
-    duckdb_con.execute(
-        f'copy (select * from read_json_auto("{box_office_data_table_name}.json")) to "{s3_file}";'
-    )
-    row_count = f'select count(*) from "{s3_file}";'
-    logger.info(
-        f'Updated {s3_file} with {duckdb_con.sql(row_count).fetchnumpy()["count_star()"][0]} rows.'
-    )
-    os.remove(box_office_data_file_name)
+    return rows_loaded
 
 
 def extract_worldwide_box_office_data() -> None:
+    logging.info('Extracting worldwide box office data.')
+
     duckdb_con = DuckDBConnection(
         s3_access_key_id=os.getenv('BOX_OFFICE_TRACKING_S3_ACCESS_KEY_ID'),
         s3_secret_access_key=os.getenv('BOX_OFFICE_TRACKING_S3_SECRET_ACCESS_KEY'),
@@ -52,8 +48,14 @@ def extract_worldwide_box_office_data() -> None:
     current_year = datetime.date.today().year
     last_year = current_year - 1
 
-    load_worldwide_box_office_to_s3(duckdb_con, current_year)
-    load_worldwide_box_office_to_s3(duckdb_con, last_year)
+    logging.info(f'Running for {current_year} and {last_year}')
+
+    total_rows_loaded = 0
+
+    for year in [current_year, last_year]:
+        total_rows_loaded += load_worldwide_box_office_to_s3(duckdb_con, year)
+
+    logging.info(f'Total rows loaded to s3: {total_rows_loaded}')
 
 
 if __name__ == '__main__':
