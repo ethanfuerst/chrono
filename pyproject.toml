@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "chrono"
+version = "0.1.0"
+description = "All my crons"
+authors = ["Ethan Fuerst"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.2.0"
+duckdb = "^1.1.0"
+requests = "^2.31.0"
+nba_api = "^1.6.0"
+modal-client = "^1.0.0"
+lxml = "^5.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+skip-string-normalization = true
