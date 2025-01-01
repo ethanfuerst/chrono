@@ -4,7 +4,7 @@ import logging
 import modal
 from modal.runner import deploy_app
 
-from boxofficetracking.etl import extract_worldwide_box_office_data
+from box_office_tracking.etl import extract_worldwide_box_office_data
 
 app = modal.App("chrono")
 logger = logging.getLogger(__name__)
