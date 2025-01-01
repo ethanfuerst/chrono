@@ -2,6 +2,7 @@ import logging
 import os
 
 import duckdb
+from pandas import DataFrame
 
 
 def setup_logging() -> None:
@@ -33,3 +34,31 @@ class DuckDBConnection:
 
     def close(self) -> None:
         self.conn.close()
+
+
+def load_df_to_s3_table(
+    duckdb_con: duckdb.DuckDBPyConnection,
+    df: DataFrame,
+    file_path: str,
+    bucket_name: str,
+) -> int:
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    file_name = f'{file_path}.json'
+    s3_file = f's3://{bucket_name}/{file_path}.parquet'
+
+    with open(file_name, 'w') as file:
+        df.to_json(file, orient='records')
+
+    duckdb_con.execute(
+        f'copy (select * from read_json_auto("{file_name}")) to "{s3_file}";'
+    )
+
+    row_count_query = f'select count(*) from "{s3_file}";'
+    rows_loaded = duckdb_con.sql(row_count_query).fetchnumpy()["count_star()"][0]
+
+    logging.info(f'Updated {s3_file} with {rows_loaded} rows.')
+
+    os.remove(file_name)
+
+    return rows_loaded
