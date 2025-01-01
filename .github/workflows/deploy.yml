@@ -26,4 +26,4 @@ jobs:
           pip install poetry && poetry install
 
       - name: Deploy Application
-        run: poetry run modal deploy etl.py
+        run: poetry run modal deploy app.py
