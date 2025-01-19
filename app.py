@@ -4,7 +4,6 @@ import logging
 import modal
 from modal.runner import deploy_app
 
-from box_office_tracking.etl import extract_worldwide_box_office_data
 from nba_data_lakehouse.etl import update_nba_data
 from utils import setup_logging
 
@@ -16,22 +15,6 @@ modal_image = modal.Image.debian_slim(python_version='3.10').poetry_install_from
     poetry_pyproject_toml='pyproject.toml'
 )
 CHRONO_SECRETS = modal.Secret.from_name('chrono-secrets')
-
-
-@app.function(
-    image=modal_image,
-    schedule=modal.Cron('0 4 * * *'),
-    secrets=[CHRONO_SECRETS],
-    retries=modal.Retries(
-        max_retries=3,
-        backoff_coefficient=1.0,
-        initial_delay=60.0,
-    ),
-)
-def box_office():
-    logging.info('Extracting box office data.')
-    extract_worldwide_box_office_data()
-    logging.info('Box office data extracted.')
 
 
 @app.function(
@@ -56,7 +39,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--function',
-        choices=['box_office', 'nba_data'],
+        choices=['nba_data'],
         required=True,
         help='The function to run.',
     )
@@ -68,10 +51,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.function == 'box_office':
-        logging.info('Running box_office function locally.')
-        box_office.local()
-    elif args.function == 'nba_data':
+    if args.function == 'nba_data':
         if args.full_refresh:
             logging.info(
                 'Running nba_data function locally with full refresh: %s',
