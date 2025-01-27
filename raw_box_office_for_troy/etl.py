@@ -58,6 +58,12 @@ def pull_data_from_s3() -> DataFrame:
             from read_csv_auto('raw_box_office_for_troy/assets/manual_adds.csv')
         );
 
+        create or replace table exclusions as (
+            select
+                title
+            from read_csv_auto('raw_box_office_for_troy/assets/exclusions.csv')
+        );
+
         create or replace table raw_box_office_for_troy as (
             with raw_data_and_manual_adds as (
                 select
@@ -67,8 +73,10 @@ def pull_data_from_s3() -> DataFrame:
                     , foreign_rev
                     , loaded_date
                 from box_office_mojo_dump
-                where year_part = 2025
-                and title not in (select distinct title from manual_adds)
+                where
+                    year_part = 2025
+                    and title not in (select distinct title from manual_adds)
+                    and title not in (select distinct title from exclusions)
 
                 union all
 
@@ -97,12 +105,17 @@ def pull_data_from_s3() -> DataFrame:
         '''
     )
 
-    row_count = 'select count(*) from raw_box_office_for_troy'
-    logging.info(
-        f'Read {duckdb_con.query(row_count).fetchnumpy()["count_star()"][0]} rows with query from s3 bucket'
+    df = (
+        duckdb_con.query('select * from raw_box_office_for_troy')
+        .fetchdf()
+        .astype(str)
+        .replace('nan', None)
     )
 
-    df = duckdb_con.query('select * from raw_box_office_for_troy').fetchdf().astype(str)
+    logging.info(f'Read {len(df)} rows with query from s3 bucket')
+
+    duckdb_con.close()
+
     return df
 
 
