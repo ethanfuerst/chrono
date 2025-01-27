@@ -1,3 +1,5 @@
 .env
 __pycache__/
-raw_box_office_for_troy/assets/
+raw_box_office_for_troy/assets/box_office_draft.csv
+raw_box_office_for_troy/assets/exclusions.csv
+raw_box_office_for_troy/assets/manual_adds.csv
