@@ -110,6 +110,7 @@ def pull_data_from_s3() -> DataFrame:
         .fetchdf()
         .astype(str)
         .replace('nan', None)
+        .replace('None', None)
     )
 
     logging.info(f'Read {len(df)} rows with query from s3 bucket')
