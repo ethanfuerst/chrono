@@ -46,7 +46,7 @@ def nba_data(full_refresh: bool = False):
     mounts=[
         modal.Mount.from_local_dir(
             'raw_box_office_for_troy/assets/',
-            remote_path='/root/raw_box_office_for_troy/assets/',
+            remote_path='/root/raw_box_office_for_troy/assets',
         ),
     ],
 )
