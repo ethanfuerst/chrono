@@ -43,12 +43,6 @@ def nba_data(full_refresh: bool = False):
         backoff_coefficient=1.0,
         initial_delay=60.0,
     ),
-    mounts=[
-        modal.Mount.from_local_dir(
-            'raw_box_office_for_troy/assets/',
-            remote_path='/root/raw_box_office_for_troy/assets',
-        ),
-    ],
 )
 def box_office_data():
     logging.info('Pulling box office data from S3.')
