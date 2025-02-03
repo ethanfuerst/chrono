@@ -17,7 +17,7 @@ def setup_logging() -> None:
 
 class DuckDBConnection:
     def __init__(self, s3_access_key_id: str, s3_secret_access_key: str) -> None:
-        self.conn = duckdb.connect(database=":memory:", read_only=False)
+        self.conn = duckdb.connect(database="chrono.db", read_only=False)
 
         self.conn.execute(
             f"""

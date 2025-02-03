@@ -18,17 +18,50 @@ def pull_data_from_s3() -> DataFrame:
         s3_secret_access_key=os.getenv('BOX_OFFICE_TRACKING_S3_SECRET_ACCESS_KEY'),
     ).get_connection()
 
+    credentials_dict = json.loads(
+        os.getenv('BOX_OFFICE_TRACKING_DRAFT_GSPREAD_CREDENTIALS').replace('\n', '\\n')
+    )
+    gc = service_account_from_dict(credentials_dict)
+    sh = gc.open('2025 Fantasy Box Office Draft')
+
+    worksheet = sh.worksheet('Multipliers and Exclusions')
+    raw_multipliers_and_exclusions = worksheet.get_all_values()
+
+    df_multipliers_and_exclusions = DataFrame(
+        data=raw_multipliers_and_exclusions[1:],
+        columns=raw_multipliers_and_exclusions[0],
+    ).astype(str)
+    duckdb_con.register('df_multipliers_and_exclusions', df_multipliers_and_exclusions)
+
+    worksheet = sh.worksheet('Manual Adds')
+    raw_manual_adds = worksheet.get_all_values()
+
+    df_manual_adds = DataFrame(
+        data=raw_manual_adds[1:],
+        columns=raw_manual_adds[0],
+    ).astype(str)
+    duckdb_con.register('df_manual_adds', df_manual_adds)
+
+    worksheet = sh.worksheet('Draft')
+    raw_draft = worksheet.get_all_values()
+
+    df_draft = DataFrame(
+        data=raw_draft[1:],
+        columns=raw_draft[0],
+    ).astype(str)
+    duckdb_con.register('df_draft', df_draft)
+
     duckdb_con.execute(
         f'''
-        create or replace table box_office_mojo_dump as (
-            with all_data as (
-                select
-                    *
-                    , split_part(split_part(filename, 'release_year=', 2), '/', 1) as year_part_from_s3
-                    , strptime(split_part(split_part(filename, 'scraped_date=', 2), '/', 1), '{S3_DATE_FORMAT}') as scraped_date_from_s3
-                from read_parquet('s3://box-office-tracking/release_year=*/scraped_date=*/data.parquet', filename=true)
-            )
+        create or replace table raw_box_office_mojo_dump as (
+            select
+                *
+                , split_part(split_part(filename, 'release_year=', 2), '/', 1) as year_part_from_s3
+                , strptime(split_part(split_part(filename, 'scraped_date=', 2), '/', 1), '{S3_DATE_FORMAT}') as scraped_date_from_s3
+            from read_parquet('s3://box-office-tracking/release_year=*/scraped_date=*/data.parquet', filename=true)
+        );
 
+        create or replace table box_office_mojo_dump as (
             select
                 "Release Group" as title
                 , coalesce(try_cast(replace("Worldwide"[2:], ',', '') as integer), 0) as revenue
@@ -36,32 +69,33 @@ def pull_data_from_s3() -> DataFrame:
                 , coalesce(try_cast(replace("Foreign"[2:], ',', '') as integer), 0) as foreign_rev
                 , scraped_date_from_s3 as loaded_date
                 , year_part_from_s3 as year_part
-            from all_data
+            from raw_box_office_mojo_dump
         );
 
         create or replace table drafter as (
             select
                 round
-                , overall as overall_pick
+                , overall_pick
                 , name
                 , movie
-            from read_csv_auto('raw_box_office_for_troy/assets/box_office_draft.csv')
+            from df_draft
         );
 
         create or replace table manual_adds as (
             select
-                title
+                try_cast(title as varchar) as title
                 , try_cast(revenue as integer) as revenue
                 , try_cast(domestic_rev as integer) as domestic_rev
                 , try_cast(foreign_rev as integer) as foreign_rev
                 , try_cast(release_date as date) as first_seen_date
-            from read_csv_auto('raw_box_office_for_troy/assets/manual_adds.csv')
+            from df_manual_adds
         );
 
         create or replace table exclusions as (
             select
-                title
-            from read_csv_auto('raw_box_office_for_troy/assets/exclusions.csv')
+                try_cast(value as varchar) as movie
+            from df_multipliers_and_exclusions
+            where try_cast(type as varchar) = 'exclusion'
         );
 
         create or replace table raw_box_office_for_troy as (
@@ -74,9 +108,9 @@ def pull_data_from_s3() -> DataFrame:
                     , loaded_date
                 from box_office_mojo_dump
                 where
-                    year_part = 2025
+                    year_part = '2025'
                     and title not in (select distinct title from manual_adds)
-                    and title not in (select distinct title from exclusions)
+                    and title not in (select distinct movie from exclusions)
 
                 union all
 
