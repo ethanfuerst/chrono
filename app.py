@@ -18,20 +18,20 @@ modal_image = modal.Image.debian_slim(python_version='3.10').poetry_install_from
 CHRONO_SECRETS = modal.Secret.from_name('chrono-secrets')
 
 
-@app.function(
-    image=modal_image,
-    schedule=modal.Cron('0 6,18 * * *'),
-    secrets=[CHRONO_SECRETS],
-    retries=modal.Retries(
-        max_retries=3,
-        backoff_coefficient=1.0,
-        initial_delay=60.0,
-    ),
-)
-def nba_data(full_refresh: bool = False):
-    logging.info('Updating NBA data.')
-    update_nba_data(full_refresh=full_refresh)
-    logging.info('NBA data updated.')
+# @app.function(
+#     image=modal_image,
+#     schedule=modal.Cron('0 6,18 * * *'),
+#     secrets=[CHRONO_SECRETS],
+#     retries=modal.Retries(
+#         max_retries=3,
+#         backoff_coefficient=1.0,
+#         initial_delay=60.0,
+#     ),
+# )
+# def nba_data(full_refresh: bool = False):
+#     logging.info('Updating NBA data.')
+#     update_nba_data(full_refresh=full_refresh)
+#     logging.info('NBA data updated.')
 
 
 @app.function(
