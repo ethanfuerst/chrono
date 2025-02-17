@@ -18,22 +18,6 @@ modal_image = modal.Image.debian_slim(python_version='3.10').poetry_install_from
 CHRONO_SECRETS = modal.Secret.from_name('chrono-secrets')
 
 
-# @app.function(
-#     image=modal_image,
-#     schedule=modal.Cron('0 6,18 * * *'),
-#     secrets=[CHRONO_SECRETS],
-#     retries=modal.Retries(
-#         max_retries=3,
-#         backoff_coefficient=1.0,
-#         initial_delay=60.0,
-#     ),
-# )
-# def nba_data(full_refresh: bool = False):
-#     logging.info('Updating NBA data.')
-#     update_nba_data(full_refresh=full_refresh)
-#     logging.info('NBA data updated.')
-
-
 @app.function(
     image=modal_image,
     schedule=modal.Cron('5 4 * * *'),
@@ -59,26 +43,14 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--function',
-        choices=['nba_data', 'box_office_data'],
+        choices=['box_office_data'],
         required=True,
         help='The function to run.',
-    )
-    parser.add_argument(
-        '--full-refresh',
-        action='store_true',
-        help='Run function with full refresh, if possible.',
     )
 
     args = parser.parse_args()
 
-    if args.function == 'nba_data':
-        if args.full_refresh:
-            logging.info('Running nba_data function locally with full refresh.')
-            nba_data.local(full_refresh=True)
-        else:
-            logging.info('Running nba_data function locally with incremental run.')
-            nba_data.local(full_refresh=False)
-    elif args.function == 'box_office_data':
+    if args.function == 'box_office_data':
         logging.info('Running box_office_data function locally.')
         box_office_data.local()
 

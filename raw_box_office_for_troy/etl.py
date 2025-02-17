@@ -12,6 +12,23 @@ setup_logging()
 S3_DATE_FORMAT = '%Y-%m-%d'
 
 
+def get_ratings_data_from_gsheets() -> DataFrame:
+    credentials_dict = json.loads(
+        os.getenv('BOX_OFFICE_TRACKING_GSPREAD_CREDENTIALS').replace('\n', '\\n')
+    )
+    gc = service_account_from_dict(credentials_dict)
+    sh = gc.open('2025 Raw Box Office Draft Data for Troy')
+    worksheet = sh.worksheet('ratings')
+    raw_ratings = worksheet.get_all_values()
+
+    df_ratings = DataFrame(
+        data=raw_ratings[1:],
+        columns=raw_ratings[0],
+    ).astype(str)
+
+    return df_ratings
+
+
 def pull_data_from_s3() -> DataFrame:
     duckdb_con = DuckDBConnection(
         s3_access_key_id=os.getenv('BOX_OFFICE_TRACKING_S3_ACCESS_KEY_ID'),
@@ -49,7 +66,10 @@ def pull_data_from_s3() -> DataFrame:
         data=raw_draft[1:],
         columns=raw_draft[0],
     ).astype(str)
+
+    df_ratings = get_ratings_data_from_gsheets()
     duckdb_con.register('df_draft', df_draft)
+    duckdb_con.register('df_ratings', df_ratings)
 
     duckdb_con.execute(
         f'''
@@ -79,6 +99,14 @@ def pull_data_from_s3() -> DataFrame:
                 , name
                 , movie
             from df_draft
+        );
+
+        create or replace table ratings as (
+            select
+                movie
+                , rated
+                , genres
+            from df_ratings
         );
 
         create or replace table manual_adds as (
@@ -132,9 +160,13 @@ def pull_data_from_s3() -> DataFrame:
                 , drafter.round as round_drafted
                 , drafter.overall_pick
                 , drafter.name
+                , ratings.rated
+                , ratings.genres
             from raw_data_and_manual_adds as raw_
             left join drafter
                 on raw_.title = drafter.movie
+            left join ratings
+                on raw_.title = ratings.movie
         );
         '''
     )
