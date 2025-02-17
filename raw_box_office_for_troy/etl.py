@@ -29,6 +29,23 @@ def get_ratings_data_from_gsheets() -> DataFrame:
     return df_ratings
 
 
+def get_multipliers_and_exclusions_data_from_gsheets() -> DataFrame:
+    credentials_dict = json.loads(
+        os.getenv('BOX_OFFICE_TRACKING_DRAFT_GSPREAD_CREDENTIALS').replace('\n', '\\n')
+    )
+    gc = service_account_from_dict(credentials_dict)
+    sh = gc.open('2025 Fantasy Box Office Draft')
+    worksheet = sh.worksheet('Multipliers and Exclusions')
+    raw_multipliers_and_exclusions = worksheet.get_all_values()
+
+    df_multipliers_and_exclusions = DataFrame(
+        data=raw_multipliers_and_exclusions[1:],
+        columns=raw_multipliers_and_exclusions[0],
+    ).astype(str)
+
+    return df_multipliers_and_exclusions
+
+
 def pull_data_from_s3() -> DataFrame:
     duckdb_con = DuckDBConnection(
         s3_access_key_id=os.getenv('BOX_OFFICE_TRACKING_S3_ACCESS_KEY_ID'),
@@ -67,9 +84,11 @@ def pull_data_from_s3() -> DataFrame:
         columns=raw_draft[0],
     ).astype(str)
 
+    df_multipliers_and_exclusions = get_multipliers_and_exclusions_data_from_gsheets()
     df_ratings = get_ratings_data_from_gsheets()
     duckdb_con.register('df_draft', df_draft)
     duckdb_con.register('df_ratings', df_ratings)
+    duckdb_con.register('df_multipliers_and_exclusions', df_multipliers_and_exclusions)
 
     duckdb_con.execute(
         f'''
@@ -126,6 +145,22 @@ def pull_data_from_s3() -> DataFrame:
             where try_cast(type as varchar) = 'exclusion'
         );
 
+        create or replace table movie_multipliers as (
+            select
+                try_cast(value as varchar) as movie
+                , try_cast(multiplier as float) as multiplier
+            from df_multipliers_and_exclusions
+            where try_cast(type as varchar) = 'movie'
+        );
+
+        create or replace table round_multipliers as (
+            select
+                try_cast(value as varchar) as round
+                , try_cast(multiplier as float) as multiplier
+            from df_multipliers_and_exclusions
+            where try_cast(type as varchar) = 'round'
+        );
+
         create or replace table raw_box_office_for_troy as (
             with raw_data_and_manual_adds as (
                 select
@@ -159,6 +194,7 @@ def pull_data_from_s3() -> DataFrame:
                 , raw_.loaded_date
                 , drafter.round as round_drafted
                 , drafter.overall_pick
+                , coalesce(movie_multipliers.multiplier, round_multipliers.multiplier, 1) as multiplier
                 , drafter.name
                 , ratings.rated
                 , ratings.genres
@@ -167,6 +203,10 @@ def pull_data_from_s3() -> DataFrame:
                 on raw_.title = drafter.movie
             left join ratings
                 on raw_.title = ratings.movie
+            left join movie_multipliers
+                on raw_.title = movie_multipliers.movie
+            left join round_multipliers
+                on drafter.round = round_multipliers.round
         );
         '''
     )
